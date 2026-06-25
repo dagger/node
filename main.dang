@@ -76,4 +76,19 @@ type Node {
       withEnvVariable("CI", "true").
       withExec([packageManager, "install"])
   }
+
+  """
+  Executes an npm package via npx, bunx, etc.
+  """
+  pub exec(args: [String]!, from: Container): Container! {
+    if (from == null) { from = base() }
+    let x = if (packageManager == "npm" || packageManager == "bun") {
+      "x"
+    } else if (packageManager == "pnpm" || packageManager == "yarn") {
+      "dlx"
+    } else {
+      raise `invalid packageManager ${packageManager}`
+    }
+    from.withExec([packageManager, x] + args)
+  }
 }
