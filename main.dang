@@ -80,15 +80,19 @@ type Node {
   """
   Executes an npm package via npx, bunx, etc.
   """
-  pub exec(args: [String]!, from: Container): Container! {
-    if (from == null) { from = base() }
-    let x = if (packageManager == "npm" || packageManager == "bun") {
+  pub exec(args: [String!]!, from: Container): Container! {
+    let ctr = if (from == null) {
+      base()
+    } else {
+      from
+    }
+    let x = if (packageManager == "npm" or packageManager == "bun") {
       "x"
-    } else if (packageManager == "pnpm" || packageManager == "yarn") {
+    } else if (packageManager == "pnpm" or packageManager == "yarn") {
       "dlx"
     } else {
       raise `invalid packageManager ${packageManager}`
     }
-    from.withExec([packageManager, x] + args)
+    ctr.withExec([packageManager, x] + args)
   }
 }
