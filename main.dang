@@ -158,8 +158,7 @@ type Node {
     base.
       withDirectory("/src", source).
       withWorkdir("/src").
-      withEnvVariable("CI", "true").
-      withExec([packageManager, "install"])
+      withEnvVariable("CI", "true")
   }
 
   """
