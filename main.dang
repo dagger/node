@@ -1,3 +1,14 @@
+type PackageJSON {
+  engines: PackageEngines
+}
+
+type PackageEngines {
+  bun: String
+  npm: String
+  pnpm: String
+  yarn: String
+}
+
 type Node {
   """
   The source directory for the project.
@@ -7,52 +18,60 @@ type Node {
   """
   The base image to use. Defaults to an image suitable for the selected package manager.
   """
-  let baseImageAddressOverride: String
+  pub baseImageAddress: String!
 
   """
-  The package manager to use. Defaults to package.json's packageManager field, or npm.
+  The package manager to use. Defaults to package.json's engines field, or npm.
   """
-  let packageManagerOverride: String
+  pub packageManager: String!
 
   new(
     source: Directory! @defaultPath(path: "/") @ignorePatterns(patterns: ["**/node_modules", "/dist", "/build"]),
     baseImageAddress: String = null,
     packageManager: String = null,
   ) {
+    if (packageManager == null) {
+      packageManager = inferPackageManager(source)
+    }
+    if (baseImageAddress == null) {
+      baseImageAddress = defaultBaseImageAddress(packageManager!)
+    }
+
     self.source = source
-    self.baseImageAddressOverride = baseImageAddress
-    self.packageManagerOverride = packageManager
+    self.packageManager = packageManagerName(packageManager!)
+    self.baseImageAddress = baseImageAddress!
     self
   }
 
-  """
-  The package manager to use.
-  """
-  pub packageManager: String! {
-    packageManagerName(packageManagerSpec)
-  }
-
-  """
-  The base image to use.
-  """
-  pub baseImageAddress: String! {
-    if (baseImageAddressOverride != null) {
-      baseImageAddressOverride
+  let inferPackageManager(source: Directory!): String! {
+    let packageJSON = JSON.decode(source.file("package.json").contents) :: PackageJSON
+    if (packageJSON.engines != null) {
+      packageManagerFromEngines(packageJSON.engines!)
     } else {
-      defaultBaseImageAddress(packageManagerSpec)
+      "npm"
     }
   }
 
-  let packageManagerSpec: String! {
-    if (packageManagerOverride != null) {
-      packageManagerOverride
+  let packageManagerFromEngines(engines: PackageEngines!): String! {
+    if (engines.bun != null) {
+      packageManagerFromEngine("bun", engines.bun!)
+    } else if (engines.pnpm != null) {
+      packageManagerFromEngine("pnpm", engines.pnpm!)
+    } else if (engines.yarn != null) {
+      packageManagerFromEngine("yarn", engines.yarn!)
+    } else if (engines.npm != null) {
+      packageManagerFromEngine("npm", engines.npm!)
     } else {
-      let packageJSON = source.file("package.json").asJSON
-      if (("\n" + packageJSON.fields.join("\n") + "\n").contains("\npackageManager\n")) {
-        packageJSON.field(["packageManager"]).asString
-      } else {
-        "npm"
-      }
+      "npm"
+    }
+  }
+
+  let packageManagerFromEngine(name: String!, version: String!): String! {
+    let cleanVersion = version.trimPrefix("v")
+    if (cleanVersion.containsMatch(`^[0-9]+(\.[0-9]+){0,2}(-[0-9A-Za-z.-]+)?$`)) {
+      name + "@" + cleanVersion
+    } else {
+      name
     }
   }
 
@@ -72,7 +91,7 @@ type Node {
 
   let defaultBaseImageAddress(spec: String!): String! {
     if (spec == "bun") {
-      "oven/bun:1.2.4-alpine"
+      "oven/bun:alpine"
     } else if (spec.trimPrefix("bun@") != spec) {
       "oven/bun:" + spec.trimPrefix("bun@") + "-alpine"
     } else {
