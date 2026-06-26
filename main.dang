@@ -2,17 +2,83 @@ type Node {
   """
   The source directory for the project.
   """
-  pub source: Directory! @defaultPath(path: "/") @ignorePatterns(patterns: ["**/node_modules", "/dist", "/build"])
+  pub source: Directory!
 
   """
-  The base image to use.
+  The base image to use. Defaults to an image suitable for the selected package manager.
   """
-  pub baseImageAddress: String! = "node:25-alpine"
+  let baseImageAddressOverride: String
+
+  """
+  The package manager to use. Defaults to package.json's packageManager field, or npm.
+  """
+  let packageManagerOverride: String
+
+  new(
+    source: Directory! @defaultPath(path: "/") @ignorePatterns(patterns: ["**/node_modules", "/dist", "/build"]),
+    baseImageAddress: String = null,
+    packageManager: String = null,
+  ) {
+    self.source = source
+    self.baseImageAddressOverride = baseImageAddress
+    self.packageManagerOverride = packageManager
+    self
+  }
 
   """
   The package manager to use.
   """
-  pub packageManager: String! = "npm"
+  pub packageManager: String! {
+    packageManagerName(packageManagerSpec)
+  }
+
+  """
+  The base image to use.
+  """
+  pub baseImageAddress: String! {
+    if (baseImageAddressOverride != null) {
+      baseImageAddressOverride
+    } else {
+      defaultBaseImageAddress(packageManagerSpec)
+    }
+  }
+
+  let packageManagerSpec: String! {
+    if (packageManagerOverride != null) {
+      packageManagerOverride
+    } else {
+      let packageJSON = source.file("package.json").asJSON
+      if (("\n" + packageJSON.fields.join("\n") + "\n").contains("\npackageManager\n")) {
+        packageJSON.field(["packageManager"]).asString
+      } else {
+        "npm"
+      }
+    }
+  }
+
+  let packageManagerName(spec: String!): String! {
+    if (spec == "npm" or spec.trimPrefix("npm@") != spec) {
+      "npm"
+    } else if (spec == "bun" or spec.trimPrefix("bun@") != spec) {
+      "bun"
+    } else if (spec == "pnpm" or spec.trimPrefix("pnpm@") != spec) {
+      "pnpm"
+    } else if (spec == "yarn" or spec.trimPrefix("yarn@") != spec) {
+      "yarn"
+    } else {
+      raise `invalid packageManager ${spec}`
+    }
+  }
+
+  let defaultBaseImageAddress(spec: String!): String! {
+    if (spec == "bun") {
+      "oven/bun:1.2.4-alpine"
+    } else if (spec.trimPrefix("bun@") != spec) {
+      "oven/bun:" + spec.trimPrefix("bun@") + "-alpine"
+    } else {
+      "node:25-alpine"
+    }
+  }
 
   """
   Install all required packages
