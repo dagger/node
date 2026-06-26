@@ -165,10 +165,8 @@ type Node {
   Executes an npm package via npx, bunx, etc.
   """
   pub exec(args: [String!]!, from: Container): Container! {
-    let ctr = if (from == null) {
-      base()
-    } else {
-      from
+    if (from == null) {
+      from = base()
     }
     let x = if (packageManager == "npm" or packageManager == "bun") {
       "x"
@@ -177,6 +175,6 @@ type Node {
     } else {
       raise `invalid packageManager ${packageManager}`
     }
-    ctr.withExec([packageManager, x] + args)
+    from.sync().withExec([packageManager, x] + args)
   }
 }
