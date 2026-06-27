@@ -158,7 +158,8 @@ type Node {
     base.
       withDirectory("/src", source).
       withWorkdir("/src").
-      withEnvVariable("CI", "true")
+      withEnvVariable("CI", "true").
+      withExec([packageManager, "install"])
   }
 
   """
@@ -175,6 +176,7 @@ type Node {
     } else {
       raise `invalid packageManager ${packageManager}`
     }
-    from.sync().withExec([packageManager, x] + args)
+    from.sync
+    from.withExec([packageManager, x] + args)
   }
 }
