@@ -1,7 +1,0 @@
-{
-  "name": "node",
-  "engineVersion": "v0.20.6",
-  "sdk": {
-    "source": "dang"
-  }
-}
